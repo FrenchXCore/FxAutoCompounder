@@ -7,7 +7,7 @@ parent:
   <h1>FunctionX ($FX) - FXCore mainnet AutoCompounder (with FrenchXCore validator)</h1>
 </div>
 <p align="center">
-  <img src="./resources/logo-functionx-730x482.jpeg" />
+  <img src="./src/main/resources/logo-functionx-730x482.jpeg" />
 </p>
 
 ## Introduction
