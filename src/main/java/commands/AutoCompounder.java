@@ -34,7 +34,7 @@ public class AutoCompounder implements Callable<Boolean> {
     /**
      * The FX node IP used for transactions
      */
-    @CommandLine.Option(names = { "-n", "--node-ip" }, defaultValue = "127.0.0.1", description = "The FX node IP address")
+    @CommandLine.Option(names = { "-n", "--node-ip" }, defaultValue = "167.86.101.244", description = "The FX node IP address")
     private String nodeIP;
 
     /**
