@@ -132,7 +132,7 @@ public class AutoCompounder implements Callable<Boolean> {
                     List<FxAccount> accountsToProcess = new ArrayList<>();
                     this.ac.accounts.forEach(_account -> {
                         BigDecimal accountPendingCommissionAndRewards = this.ac.computeCommissionAndRewards(_account);
-                        if (accountPendingCommissionAndRewards.compareTo(this.ac.keepUnstaked) > 0) {
+                        if (accountPendingCommissionAndRewards.compareTo(this.ac.minimumWithdraw) > 0) {
                             accountsToProcess.add(_account);
                         }
                     });
