@@ -136,7 +136,9 @@ public class AutoCompounder implements Callable<Boolean> {
                             accountsToProcess.add(_account);
                         }
                     });
-                    this.ac.withdrawAndRestake(accountsToProcess);
+                    if (!this.ac.accounts.isEmpty()) {
+                        this.ac.withdrawAndRestake(accountsToProcess);
+                    }
                 }
             } catch (Exception ex) {
                 ex.printStackTrace();

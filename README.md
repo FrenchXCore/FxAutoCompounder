@@ -90,6 +90,7 @@ parent:
 
 ## Updates
 - v1.0 : initial version, compatible with FXCore mainnet V2.1.1
+- v1.0.1-v1.0.2 : updates - minor bugs corrections
 
 ## What's next ?
 - Almost the same, but decentralized ?
