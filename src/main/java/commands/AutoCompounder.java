@@ -131,8 +131,8 @@ public class AutoCompounder implements Callable<Boolean> {
                     );
                     List<FxAccount> accountsToProcess = new ArrayList<>();
                     this.ac.accounts.forEach(_account -> {
-                        BigDecimal accountPendingBalance = this.ac.computeCommissionAndRewards(_account);
-                        if (accountPendingBalance.compareTo(this.ac.minimumWithdraw.add(this.ac.keepUnstaked)) > 0) {
+                        BigDecimal accountPendingBalance = this.ac.computePendingBalance(_account);
+                        if (accountPendingBalance.compareTo(this.ac.minimumWithdraw) > 0) {
                             accountsToProcess.add(_account);
                         }
                     });
@@ -344,7 +344,7 @@ public class AutoCompounder implements Callable<Boolean> {
         return true;
     }
 
-    private BigDecimal computeCommissionAndRewards(FxAccount account) {
+    private BigDecimal computePendingBalance(FxAccount account) {
         BigDecimal pending = account.getBalance();
         if (account.isValidator()) {
             pending = pending.add(account.getCommissionFee().isPresent() ? account.getCommissionFee().get() : BigDecimal.ZERO);
@@ -375,12 +375,16 @@ public class AutoCompounder implements Callable<Boolean> {
             try {
                 _accountResponse = client.authQueryAccount(_account.getFxDelegatorAddress()).get();
                 if (_accountResponse != null) {
-                    cosmos.auth.v1beta1.Auth.BaseAccount _baseAccount = null;
-                    if (_accountResponse.getAccount().is(cosmos.auth.v1beta1.Auth.BaseAccount.class)) {
-                        _baseAccount = _accountResponse.getAccount().unpack(cosmos.auth.v1beta1.Auth.BaseAccount.class);
-                        baseAccounts.put(_account, _baseAccount);
-                    } else {
-                        throw new Exception();
+                    try {
+                        cosmos.auth.v1beta1.Auth.BaseAccount _baseAccount = null;
+                        if (_accountResponse.getAccount().is(cosmos.auth.v1beta1.Auth.BaseAccount.class)) {
+                            _baseAccount = _accountResponse.getAccount().unpack(cosmos.auth.v1beta1.Auth.BaseAccount.class);
+                            baseAccounts.put(_account, _baseAccount);
+                        } else {
+                            throw new Exception();
+                        }
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
                     }
                 }
             } catch (Exception ex) {
@@ -394,7 +398,6 @@ public class AutoCompounder implements Callable<Boolean> {
         baseAccounts.entrySet().forEach(_eBaseAccount -> {
             FxAccount _account = _eBaseAccount.getKey();
             cosmos.auth.v1beta1.Auth.BaseAccount _baseAccount = _eBaseAccount.getValue();
-            AtomicReference<BigDecimal> _amountToRestake = new AtomicReference<>(BigDecimal.ZERO);
             if (_account.isValidator() && _account.getCommissionFee().isPresent() && _account.getCommissionFee().get().compareTo(BigDecimal.ONE) > 0) {
                 cosmos.distribution.v1beta1.Tx.MsgWithdrawValidatorCommission msgWithdrawValidatorCommission = cosmos.distribution.v1beta1.Tx.MsgWithdrawValidatorCommission.newBuilder()
                         .setValidatorAddress(_account.getFxValidatorAddress())
@@ -402,7 +405,6 @@ public class AutoCompounder implements Callable<Boolean> {
                 bodyBuilder.addMessages(Any.pack(msgWithdrawValidatorCommission, ""));
                 System.out.println("   " + new Date() + " : TX : Adding Withdraw validator commission for validator '" + _account.getFxValidatorAddress() + "' : " + _account.getCommissionFee().get().setScale(4, RoundingMode.HALF_UP).toPlainString() + " $FX.");
                 signaturesRequired.add(_account);
-                _amountToRestake.set(_amountToRestake.get().add(_account.getCommissionFee().get()));
             }
             _account.getRewards().entrySet().forEach(_eValidatorRewards -> {
                 _eValidatorRewards.getValue().filter(_rewards -> {
@@ -415,21 +417,20 @@ public class AutoCompounder implements Callable<Boolean> {
                     bodyBuilder.addMessages(Any.pack(msgWithdrawRewards, ""));
                     System.out.println("   " + new Date() + " : TX : Adding Withdraw delegator rewards for delegator '" + _account.getFxDelegatorAddress() + "' on validator '" + _eValidatorRewards.getKey() + "' : " + _rewards.setScale(4, RoundingMode.HALF_UP).toPlainString() + " $FX.");
                     signaturesRequired.add(_account);
-                    _amountToRestake.set(_amountToRestake.get().add(_rewards));
                 });
             });
-            _amountToRestake.set(_amountToRestake.get().subtract(this.keepUnstaked));
-            if (_amountToRestake.get().compareTo(this.minimumWithdraw) > 0) {
+            BigDecimal _amountToRestake = this.computePendingBalance(_account);
+            if (_amountToRestake.compareTo(this.minimumWithdraw) > 0) {
                 cosmos.staking.v1beta1.Tx.MsgDelegate msgDelegate = cosmos.staking.v1beta1.Tx.MsgDelegate.newBuilder()
                     .setDelegatorAddress(_account.getFxDelegatorAddress())
                     .setValidatorAddress(FRENCHXCORE_VAL)
                     .setAmount(cosmos.base.v1beta1.CoinOuterClass.Coin.newBuilder()
-                            .setAmount(_amountToRestake.get().movePointRight(18).toBigInteger().toString())
+                            .setAmount(_amountToRestake.movePointRight(18).toBigInteger().toString())
                             .setDenom("FX")
                             .build())
                     .build();
                 bodyBuilder.addMessages(Any.pack(msgDelegate, ""));
-                System.out.println("   " + new Date() + " : TX : Adding Delegate for delegator '" + _account.getFxDelegatorAddress() + "' on validator '" + FRENCHXCORE_VAL + "' : " + _amountToRestake.get().setScale(4, RoundingMode.HALF_UP).toPlainString() + " $FX.");
+                System.out.println("   " + new Date() + " : TX : Adding Delegate for delegator '" + _account.getFxDelegatorAddress() + "' on validator '" + FRENCHXCORE_VAL + "' : " + _amountToRestake.setScale(4, RoundingMode.HALF_UP).toPlainString() + " $FX.");
                 txToProcess.set(true);
             }
         });
