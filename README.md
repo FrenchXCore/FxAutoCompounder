@@ -91,6 +91,8 @@ parent:
 ## Updates
 - v1.0 : initial version, compatible with FXCore mainnet V2.1.1
 - v1.0.1-v1.0.2 : updates - minor bugs corrections
+- v1.0.3 : update - minor bug correction
+- v1.1.0 : update to fit FXCore mainnet v2.2.1
 
 ## What's next ?
 - Almost the same, but decentralized ?

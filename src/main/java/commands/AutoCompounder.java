@@ -120,7 +120,7 @@ public class AutoCompounder implements Callable<Boolean> {
         public void run() {
             try {
                 // Update all pending commission fees and rewards for all accounts
-                if (this.ac.updateCommissionFeesAndRewards()) {
+                if (this.ac.updateAccounts()) {
                     // Display overall pending commission fees and rewards cumulated for all accounts
                     System.out.println(
                             new Date() + " : " +
@@ -131,8 +131,8 @@ public class AutoCompounder implements Callable<Boolean> {
                     );
                     List<FxAccount> accountsToProcess = new ArrayList<>();
                     this.ac.accounts.forEach(_account -> {
-                        BigDecimal accountPendingCommissionAndRewards = this.ac.computeCommissionAndRewards(_account);
-                        if (accountPendingCommissionAndRewards.compareTo(this.ac.minimumWithdraw) > 0) {
+                        BigDecimal accountPendingBalance = this.ac.computeCommissionAndRewards(_account);
+                        if (accountPendingBalance.compareTo(this.ac.minimumWithdraw.add(this.ac.keepUnstaked)) > 0) {
                             accountsToProcess.add(_account);
                         }
                     });
@@ -245,7 +245,7 @@ public class AutoCompounder implements Callable<Boolean> {
         }
     }
 
-    private boolean updateCommissionFeesAndRewards() {
+    private boolean updateAccounts() {
         // Let's query the $FX balance for each FX delegator address
         AtomicBoolean err = new AtomicBoolean(false);
         this.accounts.forEach(fxAccount -> {
@@ -335,8 +335,9 @@ public class AutoCompounder implements Callable<Boolean> {
         }
 
         BigDecimal oldValue = this.pendingRewardsAndCommission;
-        this.pendingRewardsAndCommission = this.commissionFee;
-        this.pendingRewardsAndCommission = this.pendingRewardsAndCommission.add(this.allRewards);
+        this.pendingRewardsAndCommission = this.totalBalance
+                .add(this.commissionFee)
+                .add(this.allRewards);
         if (oldValue != null) {
             this.avgEarningPerDay = this.pendingRewardsAndCommission.subtract(oldValue).multiply(oneDayPeriods);
         }
@@ -344,7 +345,7 @@ public class AutoCompounder implements Callable<Boolean> {
     }
 
     private BigDecimal computeCommissionAndRewards(FxAccount account) {
-        BigDecimal pending = BigDecimal.ZERO;
+        BigDecimal pending = account.getBalance();
         if (account.isValidator()) {
             pending = pending.add(account.getCommissionFee().isPresent() ? account.getCommissionFee().get() : BigDecimal.ZERO);
         }
